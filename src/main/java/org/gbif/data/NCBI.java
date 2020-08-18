@@ -172,8 +172,8 @@ public class NCBI {
         consumer.accept(u);
         usages.put(key, u);
         counter++;
-        if (counter % 10000 == 0) {
-          System.out.println("Added "+counter+" usages");
+        if (counter % 25000 == 0) {
+          System.out.println("Processed "+counter+" records");
         }
       }
     }
