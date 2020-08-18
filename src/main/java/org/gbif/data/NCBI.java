@@ -1,5 +1,6 @@
 package org.gbif.data;
 
+import org.apache.commons.io.FileUtils;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.Serializer;
@@ -51,8 +52,11 @@ public class NCBI {
 
   private String[] _row;
 
-  public NCBI(File dir) {
+  public NCBI(File dir) throws IOException {
     this.dir = dir;
+    if (dir.exists()) {
+      FileUtils.deleteDirectory(dir);
+    }
     File dbf = new File(dir, "mapdb");
     dbf.getParentFile().mkdirs();
     if (dbf.exists()) {
@@ -233,7 +237,7 @@ public class NCBI {
   }
 
   public static void main(String[] args) throws Exception {
-    File dir = new File("ncbi");
+    File dir = new File("output");
     new NCBI(dir).run();
   }
 }
