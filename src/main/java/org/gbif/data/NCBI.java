@@ -228,7 +228,13 @@ public class NCBI {
     if (!StringUtils.isBlank(ids)) {
       for (String taxID : SPACE.split(ids)) {
         if (!StringUtils.isBlank(taxID)) {
-          int key = Integer.parseInt(taxID);
+          int key;
+          try {
+            key = Integer.parseInt(taxID);
+          } catch (NumberFormatException e) {
+            System.out.println("Bad citation taxonID value: " + taxID);
+            continue;
+          }
           NameUsage u = usages.getOrDefault(key, new NameUsage());
           u.key = key;
           NameUsage.Citation cit = new NameUsage.Citation();
@@ -297,6 +303,11 @@ public class NCBI {
 
   public static void main(String[] args) throws Exception {
     File dir = new File("output");
-    new NCBI(dir).run();
+    NCBI ncbi = new NCBI(dir);
+
+    InputStream stream = new FileInputStream(new File("/Users/markus/Downloads/new_taxdump/citations.dmp"));
+    ncbi.extract(stream, ncbi::citations);
+
+    //ncbi.run();
   }
 }
