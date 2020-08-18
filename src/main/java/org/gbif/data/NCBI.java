@@ -72,10 +72,6 @@ public class NCBI {
   }
 
   public void run() throws IOException, InterruptedException {
-    export();
-    System.exit(0);
-
-
     System.out.println("Download NCBI dump from " + LOCATION);
     HttpRequest request = HttpRequest.newBuilder()
         .uri(LOCATION)
