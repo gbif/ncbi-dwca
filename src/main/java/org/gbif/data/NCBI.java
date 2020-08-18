@@ -1,6 +1,7 @@
 package org.gbif.data;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.units.qual.C;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
@@ -224,22 +225,24 @@ public class NCBI {
 
   void citations() {
     String ids = row(6);
-    if (ids != null) {
+    if (!StringUtils.isBlank(ids)) {
       for (String taxID : SPACE.split(ids)) {
-        int key = Integer.parseInt(taxID);
-        NameUsage u = usages.getOrDefault(key, new NameUsage());
-        u.key = key;
-        NameUsage.Citation cit = new NameUsage.Citation();
-        cit.medlineID = row(2);
-        cit.pubmedID  = row(3);
-        cit.url       = row(4);
-        cit.citation  = row(5);
-        // unescape \" and \\
-        if (cit.citation != null) {
-          cit.citation = cit.citation.replace("\\\\", "\\");
-          cit.citation = cit.citation.replace("\\\"", "\"");
+        if (!StringUtils.isBlank(taxID)) {
+          int key = Integer.parseInt(taxID);
+          NameUsage u = usages.getOrDefault(key, new NameUsage());
+          u.key = key;
+          NameUsage.Citation cit = new NameUsage.Citation();
+          cit.medlineID = row(2);
+          cit.pubmedID  = row(3);
+          cit.url       = row(4);
+          cit.citation  = row(5);
+          // unescape \" and \\
+          if (cit.citation != null) {
+            cit.citation = cit.citation.replace("\\\\", "\\");
+            cit.citation = cit.citation.replace("\\\"", "\"");
+          }
+          usages.put(key, u);
         }
-        usages.put(key, u);
       }
     }
   }
