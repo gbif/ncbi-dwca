@@ -15,6 +15,27 @@ public class NameUsage implements Serializable {
   public List<String> synonyms = new ArrayList<>();
   public List<String> vernacular = new ArrayList<>();
   public List<TypeMaterial> typeMaterial = new ArrayList<>();
+  public List<Citation> citations = new ArrayList<>();
+
+  public static class Citation implements Serializable {
+    public String citation;
+    public String medlineID;
+    public String pubmedID;
+    public String url;
+
+    public String identifier() {
+      if (url != null) {
+        return url;
+      }
+      if (pubmedID != null) {
+        return "pubmed:" + pubmedID;
+      }
+      if (medlineID != null) {
+        return "medline:" + medlineID;
+      }
+      return null;
+    }
+  }
 
   public static class TypeMaterial implements Serializable {
     public String citation;

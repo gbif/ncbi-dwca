@@ -27,5 +27,12 @@
     <field index="1" term="http://purl.org/dc/terms/bibliographicCitation"/>
     <field index="2" term="http://rs.tdwg.org/dwc/terms/typeStatus"/>
   </extension>
-
+  <extension encoding="UTF-8" fieldsTerminatedBy="\t" linesTerminatedBy="\n" fieldsEnclosedBy='' ignoreHeaderLines="0" rowType="http://rs.gbif.org/terms/1.0/Reference">
+    <files>
+      <location>citations.txt</location>
+    </files>
+    <coreid index="0" />
+    <field index="1" term="http://purl.org/dc/terms/identifier"/>
+    <field index="2" term="http://purl.org/dc/terms/bibliographicCitation"/>
+  </extension>
 </archive>

@@ -1,6 +1,7 @@
 package org.gbif.data;
 
 import org.apache.commons.io.FileUtils;
+import org.checkerframework.checker.units.qual.C;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.Serializer;
@@ -21,7 +22,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump_readme.txt
+ * https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/taxdump_readme.txt
  *
  * The name type has 13 distinct values:
  *
@@ -41,11 +42,15 @@ import java.util.zip.ZipInputStream;
  */
 public class NCBI {
 
-  static final URI LOCATION = URI.create("https://ftp.ncbi.nih.gov/pub/taxonomy/taxdmp.zip");
+  static final URI LOCATION = URI.create("https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.zip");
   static final String TAXA = "nodes.dmp";
   static final String NAMES = "names.dmp";
+  static final String CITATIONS = "citations.dmp";
+  static final String TYPES = "typematerial.dmp";
+  static final String HOST = "host.dmp";
+
   static final Pattern SPLITTER = Pattern.compile("\\s*\\|\\s*");
-  static final Pattern TYPE_STATUS = Pattern.compile("\\<([a-z ]+)\\>");
+  static final Pattern SPACE = Pattern.compile("\\s+");
 
   private final File dir;
   private final Map<Integer, NameUsage> usages;
@@ -100,6 +105,16 @@ public class NCBI {
         } else if (NAMES.equalsIgnoreCase(entry.getName())) {
           extract(stream, this::names);
           stream.closeEntry();
+        } else if (TYPES.equalsIgnoreCase(entry.getName())) {
+          extract(stream, this::typeMaterial);
+          stream.closeEntry();
+        } else if (HOST.equalsIgnoreCase(entry.getName())) {
+          // TODO: implement this in ColDP
+          //extract(stream, this::host);
+          //stream.closeEntry();
+        } else if (CITATIONS.equalsIgnoreCase(entry.getName())) {
+          extract(stream, this::citations);
+          stream.closeEntry();
         }
         entry = stream.getNextEntry();
       }
@@ -129,9 +144,11 @@ public class NCBI {
     _write(writer, key, parentKey);
     write(writer, cols);
   }
+
   static String str(Integer x) {
     return x == null ? "" : x.toString();
   }
+
   static String str(String x) {
     return x == null ? "" : x;
   }
@@ -141,7 +158,8 @@ public class NCBI {
     try (
         FileWriter taxa = new FileWriter(new File(dir, "taxa.txt"), StandardCharsets.UTF_8);
         FileWriter vernacular = new FileWriter(new File(dir, "vernacular.txt"), StandardCharsets.UTF_8);
-        FileWriter material = new FileWriter(new File(dir, "typematerial.txt"), StandardCharsets.UTF_8);
+        FileWriter material   = new FileWriter(new File(dir, "typematerial.txt"), StandardCharsets.UTF_8);
+        FileWriter citations  = new FileWriter(new File(dir, "citations.txt"), StandardCharsets.UTF_8);
     ) {
       for (NameUsage u : usages.values()) {
         write(taxa, u.key, u.parentKey, null, u.rank, u.name, u.comments);
@@ -155,6 +173,9 @@ public class NCBI {
         for (String s : u.synonyms) {
           write(taxa, u.key+"-s" + x++, null, String.valueOf(u.key), null, s, null);
         }
+        for (NameUsage.Citation c : u.citations) {
+          write(citations, u.key, c.identifier(), c.citation);
+        }
       }
       Utils.copy("/ncbi/meta.xml", new File(dir, "meta.xml"));
     }
@@ -164,21 +185,61 @@ public class NCBI {
   }
 
   void extract(InputStream nodes, Consumer<NameUsage> consumer) throws IOException {
-    BufferedReader br = new BufferedReader(new InputStreamReader(nodes, StandardCharsets.UTF_8));
+    extract(nodes, () -> {
+      int key = Integer.parseInt(row(0));
+      NameUsage u = usages.getOrDefault(key, new NameUsage());
+      u.key = key;
+      consumer.accept(u);
+      usages.put(key, u);
+    });
+  }
+
+  void extract(InputStream stream, Procedure proc) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
     int counter=0;
     for (String line = br.readLine(); line != null; line = br.readLine()) {
       //System.out.println(line);
       _row = SPLITTER.split(line);
       if (_row != null && _row.length > 0) {
-        int key = Integer.parseInt(row(0));
-        NameUsage u = usages.getOrDefault(key, new NameUsage());
-        u.key = key;
-        consumer.accept(u);
-        usages.put(key, u);
+        proc.execute();
         counter++;
         if (counter % 25000 == 0) {
           System.out.println("Processed "+counter+" records");
         }
+      }
+    }
+  }
+
+  void typeMaterial(NameUsage u) {
+    NameUsage.TypeMaterial tm = new NameUsage.TypeMaterial();
+    tm.citation = row(1);
+    tm.status = row(2);
+    u.typeMaterial.add(tm);
+  }
+
+  void host(NameUsage u) {
+    // TODO: ColDP species interaction
+    // "includes" marks an organism relation for endyphytes etc
+  }
+
+  void citations() {
+    String ids = row(6);
+    if (ids != null) {
+      for (String taxID : SPACE.split(ids)) {
+        int key = Integer.parseInt(taxID);
+        NameUsage u = usages.getOrDefault(key, new NameUsage());
+        u.key = key;
+        NameUsage.Citation cit = new NameUsage.Citation();
+        cit.medlineID = row(2);
+        cit.pubmedID  = row(3);
+        cit.url       = row(4);
+        cit.citation  = row(5);
+        // unescape \" and \\
+        if (cit.citation != null) {
+          cit.citation = cit.citation.replace("\\\\", "\\");
+          cit.citation = cit.citation.replace("\\\"", "\"");
+        }
+        usages.put(key, u);
       }
     }
   }
@@ -212,18 +273,6 @@ public class NCBI {
         case "genbank common name":
           u.vernacular.add(name);
           break;
-        case "type material":
-          NameUsage.TypeMaterial tm = new NameUsage.TypeMaterial();
-          tm.citation = name;
-          Matcher m = TYPE_STATUS.matcher(unique);
-          if (m.find()) {
-            tm.status = m.group(1);
-          }
-          u.typeMaterial.add(tm);
-          break;
-        case "includes":
-          //TODO: ColDP species interaction
-          // "includes" marks an organism relation for endyphytes etc
       }
     }
     //System.out.println(String.format("Type=%s; name=%s; unique=%s", type ,u.name, unique));
