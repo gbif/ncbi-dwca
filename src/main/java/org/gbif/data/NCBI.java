@@ -305,9 +305,9 @@ public class NCBI {
     File dir = new File("output");
     NCBI ncbi = new NCBI(dir);
 
-    InputStream stream = new FileInputStream(new File("/Users/markus/Downloads/new_taxdump/citations.dmp"));
-    ncbi.extract(stream, ncbi::citations);
+    //InputStream stream = new FileInputStream(new File("/Users/markus/Downloads/new_taxdump/citations.dmp"));
+    //ncbi.extract(stream, ncbi::citations);
 
-    //ncbi.run();
+    ncbi.run();
   }
 }
