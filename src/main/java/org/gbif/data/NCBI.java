@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -44,6 +45,7 @@ public class NCBI {
   static final String TAXA = "nodes.dmp";
   static final String NAMES = "names.dmp";
   static final Pattern SPLITTER = Pattern.compile("\\s*\\|\\s*");
+  static final Pattern TYPE_STATUS = Pattern.compile("\\<([a-z ]+)\\>");
 
   private final File dir;
   private final Map<Integer, NameUsage> usages;
@@ -139,13 +141,15 @@ public class NCBI {
     try (
         FileWriter taxa = new FileWriter(new File(dir, "taxa.txt"), StandardCharsets.UTF_8);
         FileWriter vernacular = new FileWriter(new File(dir, "vernacular.txt"), StandardCharsets.UTF_8);
+        FileWriter material = new FileWriter(new File(dir, "typematerial.txt"), StandardCharsets.UTF_8);
     ) {
-      // taxa, "taxonID", "parentNameUsageID", "acceptedNameUsageID", "taxonRank", "scientificName", "taxonRemarks";
-      // vernacular, "taxonID", "vernacularName"
       for (NameUsage u : usages.values()) {
         write(taxa, u.key, u.parentKey, null, u.rank, u.name, u.comments);
         for (String v : u.vernacular) {
           write(vernacular, u.key, v);
+        }
+        for (NameUsage.TypeMaterial tm : u.typeMaterial) {
+          write(material, u.key, tm.citation, tm.status);
         }
         int x = 1;
         for (String s : u.synonyms) {
@@ -193,26 +197,33 @@ public class NCBI {
     types.put(type, String.join(" | ", _row));
     if (type != null ) {
       switch (type) {
-        case "authority":
+        case "scientific name":
           u.name = name;
           break;
-        case "scientific name":
-          if (u.name == null) {
-            u.name = name;
-          }
-          break;
         case "synonym":
-          u.synonyms.add(name);
-          break;
         case "equivalent name":
+        case "misnomer":
+        case "misspelling":
+        //case "in-part":
+        case "authority": // concept names such as Phenylobacterium Lingens et al. 1985 emend. Abraham et al. 2008
           u.synonyms.add(name);
           break;
         case "common name":
+        case "genbank common name":
           u.vernacular.add(name);
           break;
         case "type material":
-          // what to do with that???
+          NameUsage.TypeMaterial tm = new NameUsage.TypeMaterial();
+          tm.citation = name;
+          Matcher m = TYPE_STATUS.matcher(unique);
+          if (m.find()) {
+            tm.status = m.group(1);
+          }
+          u.typeMaterial.add(tm);
           break;
+        case "includes":
+          //TODO: ColDP species interaction
+          // "includes" marks an organism relation for endyphytes etc
       }
     }
     //System.out.println(String.format("Type=%s; name=%s; unique=%s", type ,u.name, unique));

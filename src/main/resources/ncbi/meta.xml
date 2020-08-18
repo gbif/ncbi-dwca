@@ -19,4 +19,13 @@
     <coreid index="0" />
     <field index="1" term="http://rs.tdwg.org/dwc/terms/vernacularName"/>
   </extension>
+  <extension encoding="UTF-8" fieldsTerminatedBy="\t" linesTerminatedBy="\n" fieldsEnclosedBy='' ignoreHeaderLines="0" rowType="http://rs.gbif.org/terms/1.0/TypesAndSpecimen">
+    <files>
+      <location>typematerial.txt</location>
+    </files>
+    <coreid index="0" />
+    <field index="1" term="http://purl.org/dc/terms/bibliographicCitation"/>
+    <field index="2" term="http://rs.tdwg.org/dwc/terms/typeStatus"/>
+  </extension>
+
 </archive>
